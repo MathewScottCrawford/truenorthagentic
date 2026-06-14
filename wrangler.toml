@@ -1,0 +1,8 @@
+name = "truenorthagentic"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "."
+
+[[d1_databases]]
+binding = "DB"
+database_name = "truenorth-db"
+database_id = "7f09d6d2-1fd1-4fd2-930a-f86f05137547"
