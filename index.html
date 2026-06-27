@@ -116,7 +116,7 @@ footer b{color:#e8edf2;font-family:var(--serif);font-weight:500}
     <p class="role">AI Architect &amp; Agentic Workflow Consultant</p>
     <p class="tagline">Your field guides to AI-Native work</p>
     <p class="cred">Over three decades of embedded &amp; automotive software engineering</p>
-    <a class="btn btn-gold" onclick="go('portage')">Explore the Portage practice</a><a class="btn btn-ghost" href="mailto:mathew.s.crawford@gmail.com">Get in touch</a>
+    <a class="btn btn-gold" onclick="go('portage')">Explore the Portage practice</a><a class="btn btn-ghost" href="mailto:mathew.s.crawford@gmail.com" onclick="trackEvent('get_in_touch_click', {})">Get in touch</a>
   </div></div>
   <section class="body"><div class="wrap">
     <div class="rule"></div>
@@ -192,15 +192,23 @@ footer b{color:#e8edf2;font-family:var(--serif);font-weight:500}
 </div></footer>
 
 <script>
+function trackEvent(name, props) {
+  if (window._cf_beacon && window._cf_beacon.track) {
+    window._cf_beacon.track(name, props || {});
+  }
+}
 function go(id){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('show')});
   document.getElementById(id).classList.add('show');
   document.getElementById('nav-home').classList.toggle('on',id==='home');
   document.getElementById('nav-portage').classList.toggle('on',id==='portage');
   window.scrollTo({top:0,behavior:'smooth'});
+  if (id === 'portage') trackEvent('page_view', { page: 'portage-practice' });
+  if (id === 'home') trackEvent('page_view', { page: 'home' });
 }
 function pick(el){var s=el.parentNode.querySelectorAll('.pill');s.forEach(function(p){p.classList.remove('on')});el.classList.add('on');}
 function revealDownloads(){
+  trackEvent('download_click', { label: 'get-the-guide' });
   var dl=document.getElementById('download-links');
   var links=dl.querySelectorAll('a');
   links[0].href='https://pub-6de04b5453da4f95b43d5dc40a2e8047.r2.dev/AI_Portage_Field_Guide.pdf';
@@ -214,6 +222,7 @@ function revealDownloads(){
   fetch('/api/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,opt_in:opt_in})}).catch(function(){});
 }
 function submitInterest(){
+  trackEvent('interest_form_submit', {});
   var interests=[];
   for(var i=1;i<=5;i++){var cb=document.getElementById('int-cb-'+i);if(cb&&cb.checked)interests.push(cb.nextElementSibling.textContent.trim());}
   var urgency='';
@@ -233,5 +242,8 @@ function submitInterest(){
     .catch(function(){document.getElementById('int-result').style.display='block';});
 }
 </script>
+<!-- Cloudflare Web Analytics -->
+<script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "5067c818b31a4c93be5dafd538975239"}'></script>
+<!-- End Cloudflare Web Analytics -->
 </body>
 </html>
