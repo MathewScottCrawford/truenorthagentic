@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>True North Agentic — Analytics</title>
+  <style>
+    :root {
+      --bg: #f7f8fa;
+      --card: #ffffff;
+      --border: #e3e6ea;
+      --text: #1a1d21;
+      --muted: #6b7280;
+      --accent: #2563eb;
+      --accent-soft: #eff4ff;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0e1116;
+        --card: #171b22;
+        --border: #272d38;
+        --text: #e6e9ee;
+        --muted: #8b94a3;
+        --accent: #60a5fa;
+        --accent-soft: #1a2536;
+        --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 32px 20px 64px; }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+    h1 { font-size: 22px; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
+    .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+    button {
+      font: inherit;
+      font-size: 14px;
+      font-weight: 550;
+      color: #fff;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      padding: 9px 16px;
+      cursor: pointer;
+      transition: opacity 0.15s ease;
+    }
+    button:hover { opacity: 0.88; }
+    button:disabled { opacity: 0.5; cursor: default; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 18px 16px;
+      box-shadow: var(--shadow);
+    }
+    .card .label {
+      font-size: 12px;
+      font-weight: 550;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .card .value { font-size: 30px; font-weight: 680; margin-top: 6px; letter-spacing: -0.02em; }
+    .card .note { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .section-title { font-size: 15px; font-weight: 600; margin: 0 0 12px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    th, td {
+      text-align: left;
+      padding: 11px 16px;
+      font-size: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    tr:last-child td { border-bottom: none; }
+    td.email { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+    .badge {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 550;
+      padding: 2px 9px;
+      border-radius: 999px;
+    }
+    .badge.yes { background: var(--accent-soft); color: var(--accent); }
+    .badge.no { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .status { font-size: 13px; color: var(--muted); margin-bottom: 18px; min-height: 18px; }
+    .status.error { color: #dc2626; }
+    .empty { padding: 28px 16px; text-align: center; color: var(--muted); font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>True North Agentic — Analytics</h1>
+        <div class="sub">Live data from /api/stats</div>
+      </div>
+      <button id="refresh">Refresh</button>
+    </header>
+
+    <div class="status" id="status">Loading&hellip;</div>
+
+    <div style="display:flex; gap:12px; align-items:center; margin-bottom:1.25rem; flex-wrap:wrap;">
+      <div style="display:flex; align-items:center; gap:6px; font-size:13px;">
+        <label for="from-date" style="color:#888;">From</label>
+        <input type="date" id="from-date" style="font-size:13px; padding:4px 8px; border:1px solid #ccc; border-radius:4px; background:#fff; color:#111;">
+      </div>
+      <div style="display:flex; align-items:center; gap:6px; font-size:13px;">
+        <label for="to-date" style="color:#888;">To</label>
+        <input type="date" id="to-date" style="font-size:13px; padding:4px 8px; border:1px solid #ccc; border-radius:4px; background:#fff; color:#111;">
+      </div>
+      <button onclick="loadStats()" style="font-size:13px; padding:4px 12px; border:1px solid #ccc; border-radius:4px; cursor:pointer; background:#fff;">Apply</button>
+      <button onclick="clearDates()" style="font-size:13px; padding:4px 12px; border:1px solid #ccc; border-radius:4px; cursor:pointer; background:#fff;">Clear</button>
+    </div>
+
+    <div class="grid" id="cards"></div>
+
+    <h2 class="section-title">Recent downloads</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Opted in</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody id="recent"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const API = "https://truenorthagentic.com/api/stats";
+
+    const statusEl = document.getElementById("status");
+    const cardsEl = document.getElementById("cards");
+    const recentEl = document.getElementById("recent");
+    const refreshBtn = document.getElementById("refresh");
+
+    function fmtNum(n) {
+      return (Number(n) || 0).toLocaleString();
+    }
+
+    function fmtDate(iso) {
+      if (!iso) return "—";
+      const d = new Date(iso);
+      if (isNaN(d)) return iso;
+      return d.toLocaleString(undefined, {
+        year: "numeric", month: "short", day: "numeric",
+        hour: "2-digit", minute: "2-digit"
+      });
+    }
+
+    function card(label, value, note) {
+      return `<div class="card">
+        <div class="label">${label}</div>
+        <div class="value">${value}</div>
+        ${note ? `<div class="note">${note}</div>` : ""}
+      </div>`;
+    }
+
+    function render(data) {
+      const total = Number(data?.downloads?.total) || 0;
+      const optedIn = Number(data?.downloads?.opted_in) || 0;
+      const anonymous = data.downloads.anonymous || 0;
+      const interest = Number(data?.interest?.total) || 0;
+      const pct = total > 0 ? Math.round((optedIn / total) * 100) : 0;
+
+      cardsEl.innerHTML = [
+        card("Total downloads", fmtNum(total)),
+        card("Opted in", fmtNum(optedIn), `${pct}% of downloads`),
+        card("Anonymous", fmtNum(anonymous), "no opt-in"),
+        card("Interest submissions", fmtNum(interest)),
+      ].join("");
+
+      const rows = Array.isArray(data?.recent_downloads) ? data.recent_downloads : [];
+      if (rows.length === 0) {
+        recentEl.innerHTML = `<tr><td colspan="3" class="empty">No downloads yet</td></tr>`;
+        return;
+      }
+      recentEl.innerHTML = rows.map((r) => {
+        const opted = Number(r.opt_in) === 1;
+        const email = r.email ? String(r.email).replace(/[<>&]/g, (c) =>
+          ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c])) : "—";
+        return `<tr>
+          <td class="email">${email}</td>
+          <td><span class="badge ${opted ? "yes" : "no"}">${opted ? "Yes" : "No"}</span></td>
+          <td>${fmtDate(r.created_at)}</td>
+        </tr>`;
+      }).join("");
+    }
+
+    async function loadStats() {
+      refreshBtn.disabled = true;
+      statusEl.className = "status";
+      statusEl.textContent = "Loading…";
+      try {
+        const from = document.getElementById('from-date').value;
+        const to = document.getElementById('to-date').value;
+        const params = new URLSearchParams();
+        if (from) params.set('from', from);
+        if (to) {
+          const toDate = new Date(to);
+          toDate.setDate(toDate.getDate() + 1);
+          params.set('to', toDate.toISOString().split('T')[0]);
+        }
+        const url = 'https://truenorthagentic.com/api/stats' + (params.toString() ? '?' + params.toString() : '');
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && data.error) throw new Error(data.error);
+        render(data);
+        const periodLabel = (from || to) ? ' · filtered' : ' · all time';
+        statusEl.textContent = 'Live data' + periodLabel + ' · ' + new Date().toLocaleTimeString();
+      } catch (err) {
+        statusEl.className = "status error";
+        statusEl.textContent = `Failed to load: ${err.message}`;
+      } finally {
+        refreshBtn.disabled = false;
+      }
+    }
+
+    function clearDates() {
+      document.getElementById('from-date').value = '';
+      document.getElementById('to-date').value = '';
+      loadStats();
+    }
+
+    refreshBtn.addEventListener("click", loadStats);
+    loadStats();
+  </script>
+</body>
+</html>
