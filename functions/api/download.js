@@ -9,10 +9,10 @@ export async function onRequestPost(context) {
       if (!emailRegex.test(email)) {
         return Response.json({ success: false, error: 'Invalid email' }, { status: 400 });
       }
-      await env.DB.prepare(
-        'INSERT INTO downloads (email, opt_in, created_at) VALUES (?, ?, ?)'
-      ).bind(email, opt_in, new Date().toISOString()).run();
     }
+    await env.DB.prepare(
+      'INSERT INTO downloads (email, opt_in, created_at) VALUES (?, ?, ?)'
+    ).bind(email || null, opt_in, new Date().toISOString()).run();
     return Response.json({ success: true });
   } catch (err) {
     return Response.json({ success: false, error: err.message }, { status: 500 });
