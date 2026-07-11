@@ -31,6 +31,10 @@ export async function onRequestGet(context) {
       `SELECT COUNT(*) as total FROM interest ${where}`
     ).bind(...params).first();
 
+    const contact = await env.DB.prepare(
+      `SELECT COUNT(*) as total FROM contact ${where}`
+    ).bind(...params).first();
+
     const recent = await env.DB.prepare(
       `SELECT email, opt_in, created_at FROM downloads ${where} ORDER BY created_at DESC LIMIT 5`
     ).bind(...params).all();
@@ -43,6 +47,9 @@ export async function onRequestGet(context) {
       },
       interest: {
         total: interest.total || 0
+      },
+      contact: {
+        total: contact.total || 0
       },
       recent_downloads: recent.results || [],
       period: { from: from || null, to: to || null }

@@ -197,6 +197,7 @@
       const optedIn = Number(data?.downloads?.opted_in) || 0;
       const anonymous = data.downloads.anonymous || 0;
       const interest = Number(data?.interest?.total) || 0;
+      const contact = Number(data?.contact?.total) || 0;
       const pct = total > 0 ? Math.round((optedIn / total) * 100) : 0;
 
       cardsEl.innerHTML = [
@@ -204,6 +205,7 @@
         card("Opted in", fmtNum(optedIn), `${pct}% of downloads`),
         card("Anonymous", fmtNum(anonymous), "no opt-in"),
         card("Interest submissions", fmtNum(interest)),
+        card("Contact submissions", fmtNum(contact)),
       ].join("");
 
       const rows = Array.isArray(data?.recent_downloads) ? data.recent_downloads : [];

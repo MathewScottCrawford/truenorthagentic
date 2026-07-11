@@ -129,7 +129,7 @@ footer b{color:#e8edf2;font-family:var(--serif);font-weight:500}
     <p class="role">AI Architect &amp; Agentic Workflow Consultant</p>
     <p class="tagline">Your field guides to AI-Native work</p>
     <p class="cred">Over three decades of embedded &amp; automotive software engineering</p>
-    <a class="btn btn-gold" onclick="go('portage')">Explore the Portage practice</a><a class="btn btn-ghost" href="mailto:mathew.s.crawford@gmail.com" onclick="trackEvent('get_in_touch_click', {})">Get in touch</a>
+    <a class="btn btn-gold" onclick="go('portage')">Explore the Portage practice</a><a class="btn btn-ghost" onclick="openContact(); trackEvent('get_in_touch_click', {})">Get in touch</a>
   </div></div>
   <section class="body"><div class="wrap">
     <div class="rule"></div>
@@ -204,7 +204,7 @@ footer b{color:#e8edf2;font-family:var(--serif);font-weight:500}
   <div class="hero"><div class="wrap">
     <h1 class="company" style="font-size:clamp(32px,5vw,52px)">AI that holds up under engineering scrutiny</h1>
     <p class="p" style="color:#c3cbd6;font-size:18px;max-width:42em">We put AI to work inside real engineering processes &mdash; the kind with auditors, safety standards, and release gates. The automation does the heavy lifting; your engineers keep the authority.</p>
-    <a class="btn btn-gold" href="mailto:mathew.s.crawford@gmail.com" onclick="trackEvent('get_in_touch_click', { page: 'consulting' })">Get in touch</a>
+    <a class="btn btn-gold" onclick="openContact(); trackEvent('get_in_touch_click', { page: 'consulting' })">Get in touch</a>
   </div></div>
 
   <section class="body"><div class="wrap">
@@ -251,7 +251,7 @@ footer b{color:#e8edf2;font-family:var(--serif);font-weight:500}
         <p class="p">Mat spent over three decades building embedded and automotive software &mdash; AUTOSAR, ISO 26262, ASPICE &mdash; in settings where the work has to be right. He led software teams delivering production braking and suspension control systems for global OEM platforms before founding True North Automation.</p>
         <p class="p">He brings that same standard to AI: formal training in generative and agentic AI (Applied Generative AI Specialization, Michigan Engineering Professional Education), applied with the judgment of someone who has shipped safety-critical software and knows what an auditor will ask.</p>
         <p class="p">If it matters that the work is right, we should talk.</p>
-        <a class="btn btn-gold" href="mailto:mathew.s.crawford@gmail.com" onclick="trackEvent('get_in_touch_click', { page: 'consulting' })" style="margin-top:8px">Get in touch</a>
+        <a class="btn btn-gold" onclick="openContact(); trackEvent('get_in_touch_click', { page: 'consulting' })" style="margin-top:8px">Get in touch</a>
       </div>
     </div>
   </div></section>
@@ -263,6 +263,64 @@ footer b{color:#e8edf2;font-family:var(--serif);font-weight:500}
 </div></footer>
 
 <script>
+function openContact() {
+  document.getElementById('contact-modal').style.display = 'flex';
+  document.getElementById('contact-form-body').style.display = 'block';
+  document.getElementById('contact-success').style.display = 'none';
+  document.getElementById('contact-error').style.display = 'none';
+  document.getElementById('contact-name').value = '';
+  document.getElementById('contact-email').value = '';
+  document.getElementById('contact-message').value = '';
+  trackEvent('contact_modal_open', {});
+}
+
+function closeContact() {
+  document.getElementById('contact-modal').style.display = 'none';
+}
+
+async function submitContact() {
+  const name = document.getElementById('contact-name').value.trim();
+  const email = document.getElementById('contact-email').value.trim();
+  const message = document.getElementById('contact-message').value.trim();
+  const errorEl = document.getElementById('contact-error');
+  const submitBtn = document.getElementById('contact-submit');
+
+  errorEl.style.display = 'none';
+
+  if (!name || !email || !message) {
+    errorEl.textContent = 'All fields are required.';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Sending…';
+
+  try {
+    const res = await fetch('/api/contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, message }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('contact-form-body').style.display = 'none';
+      document.getElementById('contact-success').style.display = 'block';
+      trackEvent('contact_form_submit', {});
+    } else {
+      errorEl.textContent = data.error || 'Something went wrong. Please try again.';
+      errorEl.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Send message';
+    }
+  } catch (err) {
+    errorEl.textContent = 'Could not send message. Please try again.';
+    errorEl.style.display = 'block';
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Send message';
+  }
+}
+
 function trackEvent(name, props) {
   if (window._cf_beacon && window._cf_beacon.track) {
     window._cf_beacon.track(name, props || {});
@@ -321,6 +379,33 @@ function submitInterest(){
     .catch(function(){document.getElementById('int-result').style.display='block';});
 }
 </script>
+<!-- Contact Modal -->
+<div id="contact-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:12px; padding:2rem; max-width:480px; width:90%; position:relative;">
+    <button onclick="closeContact()" style="position:absolute; top:1rem; right:1rem; background:none; border:none; font-size:1.25rem; cursor:pointer; color:#666;">✕</button>
+    <h2 style="font-family:'Fraunces',serif; font-size:1.5rem; margin:0 0 1.5rem; color:#1e293b;">Get in touch</h2>
+    <div id="contact-form-body">
+      <div style="margin-bottom:1rem;">
+        <label style="display:block; font-size:13px; color:#64748b; margin-bottom:4px;">Name</label>
+        <input id="contact-name" type="text" placeholder="Your name" style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:14px; box-sizing:border-box;">
+      </div>
+      <div style="margin-bottom:1rem;">
+        <label style="display:block; font-size:13px; color:#64748b; margin-bottom:4px;">Email</label>
+        <input id="contact-email" type="email" placeholder="your@email.com" style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:14px; box-sizing:border-box;">
+      </div>
+      <div style="margin-bottom:1.5rem;">
+        <label style="display:block; font-size:13px; color:#64748b; margin-bottom:4px;">Message</label>
+        <textarea id="contact-message" rows="4" placeholder="Tell me what you're working on..." style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:14px; box-sizing:border-box; resize:vertical;"></textarea>
+      </div>
+      <div id="contact-error" style="display:none; color:#b91c1c; font-size:13px; margin-bottom:1rem;"></div>
+      <button onclick="submitContact()" id="contact-submit" style="width:100%; padding:10px; background:#d97706; color:#fff; border:none; border-radius:6px; font-size:15px; font-weight:600; cursor:pointer;">Send message</button>
+    </div>
+    <div id="contact-success" style="display:none; text-align:center; padding:1rem 0;">
+      <p style="font-size:1.1rem; color:#1e293b; font-family:'Fraunces',serif;">Message sent.</p>
+      <p style="font-size:14px; color:#64748b; margin-top:0.5rem;">I'll be in touch soon.</p>
+    </div>
+  </div>
+</div>
 <!-- Cloudflare Web Analytics -->
 <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "5067c818b31a4c93be5dafd538975239"}'></script>
 <!-- End Cloudflare Web Analytics -->
