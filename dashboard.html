@@ -129,7 +129,10 @@
         <h1>True North Agentic — Analytics</h1>
         <div class="sub">Live data from /api/stats</div>
       </div>
-      <button id="refresh">Refresh</button>
+      <div style="display:flex; gap:8px;">
+        <button id="change-token">Change token</button>
+        <button id="refresh">Refresh</button>
+      </div>
     </header>
 
     <div class="status" id="status">Loading&hellip;</div>
@@ -164,6 +167,16 @@
 
   <script>
     const API = "https://truenorthagentic.com/api/stats";
+
+    function getStatsToken() {
+      let t = null;
+      try { t = localStorage.getItem('tn_stats_token'); } catch (e) {}
+      if (!t) {
+        t = (prompt('Enter the stats access token:') || '').trim();
+        if (t) { try { localStorage.setItem('tn_stats_token', t); } catch (e) {} }
+      }
+      return t;
+    }
 
     const statusEl = document.getElementById("status");
     const cardsEl = document.getElementById("cards");
@@ -240,7 +253,18 @@
           params.set('to', toDate.toISOString().split('T')[0]);
         }
         const url = 'https://truenorthagentic.com/api/stats' + (params.toString() ? '?' + params.toString() : '');
-        const res = await fetch(url, { cache: "no-store" });
+        const res = await fetch(url, { cache: "no-store", headers: { 'Authorization': 'Bearer ' + getStatsToken() } });
+        if (res.status === 401) {
+          try { localStorage.removeItem('tn_stats_token'); } catch (e) {}
+          statusEl.className = "status error";
+          statusEl.textContent = "Token rejected. Click Refresh to re-enter it.";
+          return;
+        }
+        if (res.status === 503) {
+          statusEl.className = "status error";
+          statusEl.textContent = "Stats endpoint not configured (STATS_TOKEN secret missing).";
+          return;
+        }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (data && data.error) throw new Error(data.error);
@@ -262,6 +286,10 @@
     }
 
     refreshBtn.addEventListener("click", loadStats);
+    document.getElementById("change-token").addEventListener("click", () => {
+      try { localStorage.removeItem('tn_stats_token'); } catch (e) {}
+      loadStats();
+    });
     loadStats();
   </script>
 </body>
