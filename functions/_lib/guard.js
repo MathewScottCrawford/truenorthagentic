@@ -24,10 +24,11 @@ export async function overLimit(env, table, minutes, max) {
 }
 
 export async function verifyTurnstile(env, token, ip) {
-  if (!env.TURNSTILE_SECRET_KEY) return { ok: false, reason: 'not_configured' };
+  const secret = String(env.TURNSTILE_SECRET_KEY || '').trim();
+  if (!secret) return { ok: false, reason: 'not_configured' };
   if (!token) return { ok: false, reason: 'missing' };
   const form = new FormData();
-  form.append('secret', env.TURNSTILE_SECRET_KEY);
+  form.append('secret', secret);
   form.append('response', token);
   if (ip) form.append('remoteip', ip);
   const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
@@ -36,7 +37,8 @@ export async function verifyTurnstile(env, token, ip) {
   });
   const data = await res.json();
   if (!data.success) {
-    console.error('turnstile siteverify failed:', JSON.stringify(data['error-codes'] || []));
+    console.error('turnstile siteverify failed:', JSON.stringify(data['error-codes'] || []),
+      'secret length:', secret.length, 'raw length:', String(env.TURNSTILE_SECRET_KEY || '').length);
   }
   return { ok: !!data.success, reason: data.success ? null : 'failed' };
 }
