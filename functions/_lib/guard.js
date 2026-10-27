@@ -35,5 +35,8 @@ export async function verifyTurnstile(env, token, ip) {
     body: form,
   });
   const data = await res.json();
+  if (!data.success) {
+    console.error('turnstile siteverify failed:', JSON.stringify(data['error-codes'] || []));
+  }
   return { ok: !!data.success, reason: data.success ? null : 'failed' };
 }
