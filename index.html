@@ -263,6 +263,21 @@ footer b{color:#e8edf2;font-family:var(--serif);font-weight:500}
 </div></footer>
 
 <script>
+let tsWidgetId = null;
+function resetTurnstile() {
+  if (!window.turnstile) return;
+  try {
+    if (tsWidgetId === null) {
+      tsWidgetId = window.turnstile.render('#contact-turnstile', {
+        sitekey: '0x4AAAAAAFoBALXSyW-_7ZvHog4PGkuoAwA',
+        theme: 'light'
+      });
+    } else {
+      window.turnstile.reset(tsWidgetId);
+    }
+  } catch (e) {}
+}
+
 function openContact() {
   document.getElementById('contact-modal').style.display = 'flex';
   document.getElementById('contact-form-body').style.display = 'block';
@@ -271,6 +286,8 @@ function openContact() {
   document.getElementById('contact-name').value = '';
   document.getElementById('contact-email').value = '';
   document.getElementById('contact-message').value = '';
+  document.getElementById('contact-website').value = '';
+  resetTurnstile();
   trackEvent('contact_modal_open', {});
 }
 
@@ -282,16 +299,25 @@ async function submitContact() {
   const name = document.getElementById('contact-name').value.trim();
   const email = document.getElementById('contact-email').value.trim();
   const message = document.getElementById('contact-message').value.trim();
+  const website = document.getElementById('contact-website').value;
   const errorEl = document.getElementById('contact-error');
   const submitBtn = document.getElementById('contact-submit');
 
+  function showError(msg) {
+    errorEl.textContent = msg;
+    errorEl.style.display = 'block';
+  }
+
   errorEl.style.display = 'none';
 
-  if (!name || !email || !message) {
-    errorEl.textContent = 'All fields are required.';
-    errorEl.style.display = 'block';
+  if (!name || !email || !message) { showError('All fields are required.'); return; }
+  if (name.length > 100 || email.length > 254 || message.length > 5000) {
+    showError('Please shorten your message (5,000 characters max).');
     return;
   }
+
+  const token = (window.turnstile && tsWidgetId !== null) ? window.turnstile.getResponse(tsWidgetId) : '';
+  if (!token) { showError('Please complete the verification check above.'); return; }
 
   submitBtn.disabled = true;
   submitBtn.textContent = 'Sending…';
@@ -300,7 +326,7 @@ async function submitContact() {
     const res = await fetch('/api/contact', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, message }),
+      body: JSON.stringify({ name, email, message, website, turnstile_token: token }),
     });
     const data = await res.json();
     if (data.success) {
@@ -308,14 +334,14 @@ async function submitContact() {
       document.getElementById('contact-success').style.display = 'block';
       trackEvent('contact_form_submit', {});
     } else {
-      errorEl.textContent = data.error || 'Something went wrong. Please try again.';
-      errorEl.style.display = 'block';
+      showError(data.error || 'Something went wrong. Please try again.');
+      resetTurnstile();
       submitBtn.disabled = false;
       submitBtn.textContent = 'Send message';
     }
   } catch (err) {
-    errorEl.textContent = 'Could not send message. Please try again.';
-    errorEl.style.display = 'block';
+    showError('Could not send message. Please try again.');
+    resetTurnstile();
     submitBtn.disabled = false;
     submitBtn.textContent = 'Send message';
   }
@@ -397,7 +423,9 @@ function submitInterest(){
         <label style="display:block; font-size:13px; color:#64748b; margin-bottom:4px;">Message</label>
         <textarea id="contact-message" rows="4" placeholder="Tell me what you're working on..." style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:14px; box-sizing:border-box; resize:vertical;"></textarea>
       </div>
-      <div id="contact-error" style="display:none; color:#b91c1c; font-size:13px; margin-bottom:1rem;"></div>
+      <input id="contact-website" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute; left:-9999px; opacity:0; height:0; width:0;">
+      <div id="contact-turnstile" style="margin-bottom:1rem;"></div>
+      <div id="contact-error" style="display:none; color:#b45309; font-size:13px; margin-bottom:1rem;"></div>
       <button onclick="submitContact()" id="contact-submit" style="width:100%; padding:10px; background:#d97706; color:#fff; border:none; border-radius:6px; font-size:15px; font-weight:600; cursor:pointer;">Send message</button>
     </div>
     <div id="contact-success" style="display:none; text-align:center; padding:1rem 0;">
@@ -406,6 +434,7 @@ function submitInterest(){
     </div>
   </div>
 </div>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 <!-- Cloudflare Web Analytics -->
 <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "5067c818b31a4c93be5dafd538975239"}'></script>
 <!-- End Cloudflare Web Analytics -->
