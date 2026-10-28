@@ -288,6 +288,8 @@ function openContact() {
   document.getElementById('contact-message').value = '';
   document.getElementById('contact-website').value = '';
   resetTurnstile();
+  const sb = document.getElementById('contact-submit');
+  sb.disabled = false; sb.textContent = 'Send message';
   trackEvent('contact_modal_open', {});
 }
 
