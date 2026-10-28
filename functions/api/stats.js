@@ -26,6 +26,8 @@ function maskEmail(email) {
   return email[0] + '***' + email.slice(at);
 }
 
+const clip = (s, n) => (s ? String(s).slice(0, n) : null);
+
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: jsonHeaders() });
 }
@@ -68,8 +70,20 @@ export async function onRequestGet(context) {
     ).bind(...params).first();
 
     const interest = await env.DB.prepare(
-      `SELECT COUNT(*) as total FROM interest ${where}`
+      `SELECT COUNT(*) as total, SUM(alpha_test) as alpha_test FROM interest ${where}`
     ).bind(...params).first();
+
+    const interestUrgency = await env.DB.prepare(
+      `SELECT COALESCE(NULLIF(urgency, ''), '(not given)') AS label, COUNT(*) AS n FROM interest ${where} GROUP BY label ORDER BY n DESC`
+    ).bind(...params).all();
+
+    const interestTopics = await env.DB.prepare(
+      `SELECT j.value AS label, COUNT(*) AS n FROM interest, json_each(interest.interests) AS j ${where} GROUP BY j.value ORDER BY n DESC`
+    ).bind(...params).all();
+
+    const interestRecent = await env.DB.prepare(
+      `SELECT name, email, interests, something_else, urgency, failure_mode, alpha_test, created_at FROM interest ${where} ORDER BY created_at DESC LIMIT 10`
+    ).bind(...params).all();
 
     const contact = await env.DB.prepare(
       `SELECT COUNT(*) as total FROM contact ${where}`
@@ -85,7 +99,26 @@ export async function onRequestGet(context) {
         opted_in: downloads.opted_in || 0,
         anonymous: downloads.anonymous || 0
       },
-      interest: { total: interest.total || 0 },
+      interest: {
+        total: interest.total || 0,
+        alpha_test: interest.alpha_test || 0,
+        by_urgency: interestUrgency.results || [],
+        by_interest: interestTopics.results || [],
+        recent: (interestRecent.results || []).map(r => {
+          let topics = [];
+          try { topics = JSON.parse(r.interests || '[]'); } catch (e) {}
+          return {
+            name: clip(r.name, 100),
+            email: maskEmail(r.email),
+            interests: topics,
+            urgency: clip(r.urgency, 200),
+            failure_mode: clip(r.failure_mode, 300),
+            something_else: clip(r.something_else, 300),
+            alpha_test: r.alpha_test ? 1 : 0,
+            created_at: r.created_at
+          };
+        })
+      },
       contact: { total: contact.total || 0 },
       recent_downloads: (recent.results || []).map(r => ({
         email: maskEmail(r.email),

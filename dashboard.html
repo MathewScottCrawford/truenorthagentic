@@ -13,6 +13,7 @@
       --muted: #6b7280;
       --accent: #2563eb;
       --accent-soft: #eff4ff;
+      --warn: #b45309;
       --shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
     }
     @media (prefers-color-scheme: dark) {
@@ -24,6 +25,7 @@
         --muted: #8b94a3;
         --accent: #60a5fa;
         --accent-soft: #1a2536;
+        --warn: #fbbf24;
         --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
       }
     }
@@ -118,8 +120,20 @@
     .badge.yes { background: var(--accent-soft); color: var(--accent); }
     .badge.no { background: transparent; color: var(--muted); border: 1px solid var(--border); }
     .status { font-size: 13px; color: var(--muted); margin-bottom: 18px; min-height: 18px; }
-    .status.error { color: #dc2626; }
+    .status.error { color: var(--warn); }
     .empty { padding: 28px 16px; text-align: center; color: var(--muted); font-size: 14px; }
+    .breakdowns { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-bottom: 20px; }
+    .bars { list-style: none; margin: 12px 0 0; padding: 0; }
+    .bars li { margin-bottom: 10px; font-size: 14px; }
+    .bars .row { display: flex; justify-content: space-between; gap: 12px; }
+    .bars .n { color: var(--muted); font-variant-numeric: tabular-nums; }
+    .bars .track { height: 4px; background: var(--border); border-radius: 2px; margin-top: 4px; }
+    .bars .fill { height: 4px; background: var(--accent); border-radius: 2px; }
+    .bars .none { color: var(--muted); font-size: 13px; }
+    .table-scroll { overflow-x: auto; margin-bottom: 28px; }
+    tr.has-detail td { border-bottom: none; }
+    tr.detail td { padding-top: 0; font-size: 13px; color: var(--muted); }
+    tr.detail b { font-weight: 600; color: var(--text); }
   </style>
 </head>
 <body>
@@ -152,6 +166,29 @@
 
     <div class="grid" id="cards"></div>
 
+    <h2 class="section-title">Interest submissions</h2>
+    <div class="grid" id="interest-cards" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); margin-bottom: 14px;"></div>
+    <div class="breakdowns">
+      <div class="card"><div class="label">Topics</div><ul class="bars" id="interest-topics"></ul></div>
+      <div class="card"><div class="label">Urgency</div><ul class="bars" id="interest-urgency"></ul></div>
+    </div>
+    <h2 class="section-title">Recent submissions</h2>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Urgency</th>
+            <th>Topics</th>
+            <th>Alpha</th>
+          </tr>
+        </thead>
+        <tbody id="interest-recent"></tbody>
+      </table>
+    </div>
+
     <h2 class="section-title">Recent downloads</h2>
     <table>
       <thead>
@@ -181,6 +218,10 @@
     const statusEl = document.getElementById("status");
     const cardsEl = document.getElementById("cards");
     const recentEl = document.getElementById("recent");
+    const interestCardsEl = document.getElementById("interest-cards");
+    const interestTopicsEl = document.getElementById("interest-topics");
+    const interestUrgencyEl = document.getElementById("interest-urgency");
+    const interestRecentEl = document.getElementById("interest-recent");
     const refreshBtn = document.getElementById("refresh");
 
     function fmtNum(n) {
@@ -197,45 +238,138 @@
       });
     }
 
+    // Build DOM nodes; text always goes in via textContent, never innerHTML
+    function el(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text != null) node.textContent = String(text);
+      return node;
+    }
+
     function card(label, value, note) {
-      return `<div class="card">
-        <div class="label">${label}</div>
-        <div class="value">${value}</div>
-        ${note ? `<div class="note">${note}</div>` : ""}
-      </div>`;
+      const c = el("div", "card");
+      c.append(el("div", "label", label), el("div", "value", value));
+      if (note) c.append(el("div", "note", note));
+      return c;
+    }
+
+    function badge(on) {
+      return el("span", "badge " + (on ? "yes" : "no"), on ? "Yes" : "No");
+    }
+
+    function emptyRow(colspan, text) {
+      const tr = el("tr");
+      const td = el("td", "empty", text);
+      td.colSpan = colspan;
+      tr.append(td);
+      return tr;
+    }
+
+    function renderBars(listEl, items) {
+      const rows = (Array.isArray(items) ? items : [])
+        .map((r) => ({ label: r?.label != null ? String(r.label) : "—", n: Number(r?.n) || 0 }))
+        .filter((r) => r.n > 0);
+      if (rows.length === 0) {
+        listEl.replaceChildren(el("li", "none", "No data in this period"));
+        return;
+      }
+      const max = Math.max(...rows.map((r) => r.n));
+      listEl.replaceChildren(...rows.map((r) => {
+        const li = el("li");
+        const row = el("div", "row");
+        row.append(el("span", null, r.label), el("span", "n", fmtNum(r.n)));
+        const track = el("div", "track");
+        const fill = el("div", "fill");
+        fill.style.width = Math.round((r.n / max) * 100) + "%";
+        track.append(fill);
+        li.append(row, track);
+        return li;
+      }));
+    }
+
+    function renderInterest(interest) {
+      const total = Number(interest?.total) || 0;
+      const alpha = Number(interest?.alpha_test) || 0;
+      interestCardsEl.replaceChildren(
+        card("Alpha-test volunteers", `${fmtNum(alpha)} of ${fmtNum(total)}`)
+      );
+
+      renderBars(interestTopicsEl, interest?.by_interest);
+      renderBars(interestUrgencyEl, interest?.by_urgency);
+
+      const rows = Array.isArray(interest?.recent) ? interest.recent : [];
+      if (rows.length === 0) {
+        interestRecentEl.replaceChildren(emptyRow(6, "No submissions in this period"));
+        return;
+      }
+      const out = [];
+      rows.forEach((r) => {
+        const topics = Array.isArray(r?.interests) ? r.interests.map(String).join(", ") : "";
+        const tr = el("tr");
+        const alphaTd = el("td");
+        alphaTd.append(badge(Number(r?.alpha_test) === 1));
+        tr.append(
+          el("td", null, fmtDate(r?.created_at)),
+          el("td", null, r?.name || "—"),
+          el("td", "email", r?.email || "—"),
+          el("td", null, r?.urgency || "—"),
+          el("td", null, topics || "—"),
+          alphaTd
+        );
+        out.push(tr);
+
+        const details = [["Failure mode", r?.failure_mode], ["Something else", r?.something_else]]
+          .filter(([, v]) => v);
+        if (details.length) {
+          tr.className = "has-detail";
+          const dtr = el("tr", "detail");
+          const td = el("td");
+          td.colSpan = 6;
+          details.forEach(([k, v], i) => {
+            if (i) td.append(el("br"));
+            td.append(el("b", null, k + ": "), document.createTextNode(String(v)));
+          });
+          dtr.append(td);
+          out.push(dtr);
+        }
+      });
+      interestRecentEl.replaceChildren(...out);
     }
 
     function render(data) {
       const total = Number(data?.downloads?.total) || 0;
       const optedIn = Number(data?.downloads?.opted_in) || 0;
-      const anonymous = data.downloads.anonymous || 0;
+      const anonymous = Number(data?.downloads?.anonymous) || 0;
       const interest = Number(data?.interest?.total) || 0;
       const contact = Number(data?.contact?.total) || 0;
       const pct = total > 0 ? Math.round((optedIn / total) * 100) : 0;
 
-      cardsEl.innerHTML = [
+      cardsEl.replaceChildren(
         card("Total downloads", fmtNum(total)),
         card("Opted in", fmtNum(optedIn), `${pct}% of downloads`),
         card("Anonymous", fmtNum(anonymous), "no opt-in"),
         card("Interest submissions", fmtNum(interest)),
         card("Contact submissions", fmtNum(contact)),
-      ].join("");
+      );
+
+      renderInterest(data?.interest);
 
       const rows = Array.isArray(data?.recent_downloads) ? data.recent_downloads : [];
       if (rows.length === 0) {
-        recentEl.innerHTML = `<tr><td colspan="3" class="empty">No downloads yet</td></tr>`;
+        recentEl.replaceChildren(emptyRow(3, "No downloads yet"));
         return;
       }
-      recentEl.innerHTML = rows.map((r) => {
-        const opted = Number(r.opt_in) === 1;
-        const email = r.email ? String(r.email).replace(/[<>&]/g, (c) =>
-          ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c])) : "—";
-        return `<tr>
-          <td class="email">${email}</td>
-          <td><span class="badge ${opted ? "yes" : "no"}">${opted ? "Yes" : "No"}</span></td>
-          <td>${fmtDate(r.created_at)}</td>
-        </tr>`;
-      }).join("");
+      recentEl.replaceChildren(...rows.map((r) => {
+        const tr = el("tr");
+        const optedTd = el("td");
+        optedTd.append(badge(Number(r?.opt_in) === 1));
+        tr.append(
+          el("td", "email", r?.email || "—"),
+          optedTd,
+          el("td", null, fmtDate(r?.created_at))
+        );
+        return tr;
+      }));
     }
 
     async function loadStats() {
