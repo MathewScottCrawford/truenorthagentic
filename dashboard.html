@@ -134,6 +134,12 @@
     tr.has-detail td { border-bottom: none; }
     tr.detail td { padding-top: 0; font-size: 13px; color: var(--muted); }
     tr.detail b { font-weight: 600; color: var(--text); }
+    .activity { margin-top: 28px; }
+    .activity .card { margin-bottom: 14px; }
+    .activity .grid { margin-bottom: 0; }
+    .activity .table-scroll { margin-bottom: 14px; }
+    .activity-subhead { font-size: 13px; font-weight: 600; margin: 0 0 8px; }
+    .activity-note { font-size: 12px; color: var(--muted); margin-top: 2px; }
   </style>
 </head>
 <body>
@@ -200,6 +206,12 @@
       </thead>
       <tbody id="recent"></tbody>
     </table>
+
+    <section class="activity">
+      <h2 class="section-title">Site activity (first-party events)</h2>
+      <div id="site-activity"></div>
+      <div class="activity-note">Counts events from this site's own pages. It does not identify people, and some automated browsers may be included. Cloudflare Web Analytics remains the reference for human visits.</div>
+    </section>
   </div>
 
   <script>
@@ -222,6 +234,7 @@
     const interestTopicsEl = document.getElementById("interest-topics");
     const interestUrgencyEl = document.getElementById("interest-urgency");
     const interestRecentEl = document.getElementById("interest-recent");
+    const siteActivityEl = document.getElementById("site-activity");
     const refreshBtn = document.getElementById("refresh");
 
     function fmtNum(n) {
@@ -336,6 +349,96 @@
       interestRecentEl.replaceChildren(...out);
     }
 
+    const PAGE_LABELS = new Map([
+      ["home", "Home"],
+      ["consulting", "Consulting"],
+      ["portage-practice", "Portage practice"],
+    ]);
+    const EVENT_LABELS = new Map([
+      ["download_click", "Download clicks"],
+      ["get_in_touch_click", "Get in touch clicks"],
+      ["contact_modal_open", "Contact form opened"],
+      ["contact_form_submit", "Contact form sent"],
+      ["interest_form_submit", "Interest form submitted"],
+    ]);
+
+    function fmtRate(part, whole) {
+      return whole > 0 ? Math.round((part / whole) * 100) + "%" : "—";
+    }
+
+    function renderSiteActivity(data) {
+      const raw = data?.events?.by_name_page;
+      const rows = (Array.isArray(raw) ? raw : [])
+        .map((r) => ({ name: String(r?.name ?? ""), page: String(r?.page ?? "(none)"), n: Number(r?.n) || 0 }))
+        .filter((r) => r.name && r.n > 0);
+      if (rows.length === 0) {
+        siteActivityEl.replaceChildren(el("div", "card empty", "No events in this period"));
+        return;
+      }
+
+      // Page views by page
+      const viewsCard = el("div", "card");
+      const viewsList = el("ul", "bars");
+      renderBars(viewsList, rows
+        .filter((r) => r.name === "page_view")
+        .sort((a, b) => b.n - a.n)
+        .map((r) => ({ label: PAGE_LABELS.get(r.page) || r.page, n: r.n })));
+      viewsCard.append(el("div", "label", "Page views by page"), viewsList);
+
+      // Clicks and actions: one row per event name, known events in a fixed order
+      const byName = new Map();
+      rows.filter((r) => r.name !== "page_view").forEach((r) => {
+        if (!byName.has(r.name)) byName.set(r.name, { total: 0, pages: [] });
+        const entry = byName.get(r.name);
+        entry.total += r.n;
+        if (r.page !== "(none)") entry.pages.push(`${r.page} ${fmtNum(r.n)}`);
+      });
+      const names = [...EVENT_LABELS.keys()].filter((k) => byName.has(k))
+        .concat([...byName.keys()].filter((k) => !EVENT_LABELS.has(k)));
+
+      const tbody = el("tbody");
+      if (names.length === 0) {
+        tbody.append(emptyRow(3, "No clicks or actions in this period"));
+      } else {
+        names.forEach((k) => {
+          const tr = el("tr");
+          const entry = byName.get(k);
+          tr.append(
+            el("td", null, EVENT_LABELS.get(k) || k),
+            el("td", null, fmtNum(entry.total)),
+            el("td", null, entry.pages.join(" · ") || "—")
+          );
+          tbody.append(tr);
+        });
+      }
+      const headRow = el("tr");
+      headRow.append(el("th", null, "Event"), el("th", null, "Total"), el("th", null, "By page"));
+      const thead = el("thead");
+      thead.append(headRow);
+      const table = el("table");
+      table.append(thead, tbody);
+      const tableWrap = el("div", "table-scroll");
+      tableWrap.append(table);
+
+      // Rates
+      const opened = byName.get("contact_modal_open")?.total || 0;
+      const sent = byName.get("contact_form_submit")?.total || 0;
+      const clicks = byName.get("download_click")?.total || 0;
+      const downloads = Number(data?.downloads?.total) || 0;
+      const rates = el("div", "grid");
+      rates.append(
+        card("Contact form sent / opened", fmtRate(sent, opened), `${fmtNum(sent)} sent · ${fmtNum(opened)} opened`),
+        card("Download clicks / total downloads", fmtRate(clicks, downloads), `${fmtNum(clicks)} clicks · ${fmtNum(downloads)} downloads`)
+      );
+
+      siteActivityEl.replaceChildren(
+        viewsCard,
+        el("h3", "activity-subhead", "Clicks and actions"),
+        tableWrap,
+        rates
+      );
+    }
+
     function render(data) {
       const total = Number(data?.downloads?.total) || 0;
       const optedIn = Number(data?.downloads?.opted_in) || 0;
@@ -353,6 +456,7 @@
       );
 
       renderInterest(data?.interest);
+      renderSiteActivity(data);
 
       const rows = Array.isArray(data?.recent_downloads) ? data.recent_downloads : [];
       if (rows.length === 0) {

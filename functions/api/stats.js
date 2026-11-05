@@ -93,6 +93,10 @@ export async function onRequestGet(context) {
       `SELECT email, opt_in, created_at FROM downloads ${where} ORDER BY created_at DESC LIMIT 5`
     ).bind(...params).all();
 
+    const eventRows = await env.DB.prepare(
+      `SELECT name, COALESCE(page, '(none)') AS page, COUNT(*) AS n FROM events ${where} GROUP BY name, page ORDER BY name, n DESC`
+    ).bind(...params).all();
+
     return Response.json({
       downloads: {
         total: downloads.total || 0,
@@ -120,6 +124,7 @@ export async function onRequestGet(context) {
         })
       },
       contact: { total: contact.total || 0 },
+      events: { by_name_page: eventRows.results || [] },
       recent_downloads: (recent.results || []).map(r => ({
         email: maskEmail(r.email),
         opt_in: r.opt_in,
