@@ -15,7 +15,7 @@ export function str(value) {
 
 // Global circuit breaker: true if the table already has >= max rows in the last N minutes.
 export async function overLimit(env, table, minutes, max) {
-  if (!['downloads', 'interest', 'contact'].includes(table)) return false;
+  if (!['downloads', 'interest', 'contact', 'events'].includes(table)) return false;
   const since = new Date(Date.now() - minutes * 60000).toISOString();
   const row = await env.DB.prepare(
     `SELECT COUNT(*) AS n FROM ${table} WHERE created_at >= ?`

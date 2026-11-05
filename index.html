@@ -350,9 +350,15 @@ async function submitContact() {
 }
 
 function trackEvent(name, props) {
-  if (window._cf_beacon && window._cf_beacon.track) {
-    window._cf_beacon.track(name, props || {});
-  }
+  try {
+    var p = props || {};
+    fetch('/api/hit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name, page: p.page || '', label: p.label || '' }),
+      keepalive: true
+    }).catch(function () {});
+  } catch (e) {}
 }
 function go(id){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('show')});
@@ -404,6 +410,7 @@ function submitInterest(){
     .then(function(){document.getElementById('int-result').style.display='block';})
     .catch(function(){document.getElementById('int-result').style.display='block';});
 }
+trackEvent('page_view', { page: 'home' });
 </script>
 <!-- Contact Modal -->
 <div id="contact-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
